@@ -12,4 +12,4 @@ NOTE: This is a work in progress. Documents might change or be in a perliminary
 > What states a StorageBond (endowment) can have and what interactions are
 > allowed in each of them.
 
-<img src="https://link.excalidraw.com/readonly/XFWdfVeKJJXLYO67U7c9" />
+(permanentum excalidraw)[https://link.excalidraw.com/readonly/XFWdfVeKJJXLYO67U7c9]
