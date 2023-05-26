@@ -1,2 +1,11 @@
 # permanentum
-decentralized, guaranteed storage of Cardano data
+
+> decentralized, guaranteed storage of Cardano data
+
+This is the repository of the open source implementation of permanentum. In time the whole project will be available here.
+
+homepage: [permanentum.io](https://permanentum.io)
+
+## Running
+
+To run a local instance just clone this repo and `docker compose up`
