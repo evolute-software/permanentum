@@ -12,4 +12,9 @@ homepage: [permanentum.io](https://permanentum.io)
 
 ## Running
 
-To run a local instance just clone this repo and `docker compose up`
+To run a local instance just clone this repo and run:
+```
+cp example.env .env
+# OPT: edit .env to your liking
+docker compose up
+```

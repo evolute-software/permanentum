@@ -1,0 +1,39 @@
+---
+version: '3.8'
+
+x-base-logging: &base-logging
+  logging:
+    driver: "json-file"
+    options:
+      max-size: "20m"
+      max-file: "10"
+
+
+services:
+
+  lotus:
+    <<: *base-logging
+    build:
+      context: ./lotus
+      args:
+        VERSION: "v1.23.0"
+        NET: $FILECOIN_NETWORK
+    volumes:
+    - type: bind
+      source: $LOTUS_STORAGE
+      target: /lotus
+    - type: bind
+      source: $LOTUS_KEYSTORE
+      target: /lotus/keystore
+    environment:
+      LOTUS_PATH: /lotus
+      BOOTSTRAP: "${LOTUS_BOOTSTRAP}"
+    restart: on-failure
+    ports:
+    - "127.0.0.1:17010:1234"
+    profiles: [ "filecoin" ]
+
+volumes:
+  nix-storage:
+  cardano-socket:
+
