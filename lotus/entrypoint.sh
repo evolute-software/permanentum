@@ -27,13 +27,34 @@ mkdir -p $SS_DIR
 if $BOOTSTRAP
 then
   echo "Bootstrapping"
+  echo "Bootstrapping"
+  echo "Bootstrapping"
 
-  ## DL Bootstrap files:
-  if [ ! -f $SS_PATH ] || [[ $(find "$SS_PATH" -mtime +1 -print) ]]
+  SS_DL=false
+  if [ ! -f $SS_PATH ]
+  then
+    echo "$SS_PATH does not exists, downloading $SS"
+    SS_DL=true
+  elif [[ $(find "$SS_PATH" -mtime +1 -print) ]]
   then
     echo "SS on disk is older than 1 day, redownloading $SS"
-    aria2c -x5 --dir="$SS_DIR" -o "$SS_NAME" "$SS"
+    SS_DL=true
+  else
+    echo "Will use cached SS: $SS_PATH"
+  fi
 
+  ## DL Bootstrap files:
+  if $SS_DL
+  then
+    echo "Initiating DL: $SS"
+    aria2c -q \
+           --auto-file-renaming=false \
+           --allow-overwrite=true \
+           --min-tls-version=TLSv1.2 \
+           -x5 --dir="$SS_DIR" -o "$SS_NAME" \
+           "$SS"
+
+    echo "Finished DL: $SS"
   fi
 
   ## Bootstrap
@@ -45,6 +66,14 @@ fi
 
 ## Perpare to run
 #trap 'echo "Got SIGUSR1, stopping"; lotus daemon stop' SIGUSR1
+
+#echo "wanna run 'lotus config default'?"
+#touch blk
+#while [ -f blk ]
+#do
+#  echo "waiting for '`pwd`/blk' to dissapear"
+#  sleep 30
+#done
 
 ## Run lotus
 echo "Starting Lotus Daemon"

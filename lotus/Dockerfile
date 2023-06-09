@@ -1,4 +1,4 @@
-FROM golang:1.19.7-buster
+FROM golang:1.19.7-bullseye
 
 # Based on:
 # https://lotus.filecoin.io/lotus/install/linux/
