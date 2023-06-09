@@ -1,4 +1,4 @@
-name: Push to Discord
+name: Push to Discord and other Tools
 
 defaults:
   run:
@@ -25,5 +25,6 @@ jobs:
         webhook: ${{ secrets.DISCORD_PUSH_WEBHOOK }}
         template: 'avatar-with-link'
         include-extras: true
+        message: "New commit"
 
 
