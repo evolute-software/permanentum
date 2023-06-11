@@ -38,7 +38,7 @@ services:
     <<: *base-logging
     restart: on-failure
     image: ipfs/kubo:v0.20.0
-    profiles: [ "filecoin", "frontend", "persistence-provider" ]
+    profiles: [ "ipfs" ]
     environment:
       IPFS_PROFILE: server
       IPFS_PATH: /ipfsdata
@@ -48,12 +48,12 @@ services:
       - ${IPFS_STORAGE}:/ipfsdata
       - ./ipfs:/container-init.d
     ports:
-      - "4001:4001/tcp"         # ipfs gossip
-      - "4001:4001/udp"         # ipfs gossip
-      - "127.0.0.1:42105:8080" # gateway local access (nginx)
-      - "${TUN0}:8080:8080"   # gateway vpn access (dev)
-      - "${TUN0}:8081:8081" # websocket-listener
-      - "${TUN0}:5001:5001" # api server (don't expose externally)
+      - "${PORT_RANGE_PREFIX}20:4001/tcp"         # ipfs gossip
+      - "${PORT_RANGE_PREFIX}20:4001/udp"         # ipfs gossip
+      - "127.0.0.1:${PORT_RANGE_PREFIX}21:8080" # gateway local access (nginx)
+      - "${TUN0}:${PORT_RANGE_PREFIX}21:8080"   # gateway vpn access (dev)
+      - "${TUN0}:${PORT_RANGE_PREFIX}22:8081" # websocket-listener
+      - "${TUN0}:${PORT_RANGE_PREFIX}23:5001" # api server (don't expose externally)
 
 volumes:
   nix-storage:
