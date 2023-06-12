@@ -54,11 +54,16 @@ lotus wallet new # Creates a new wallet and prints our its address
 ```
 
 Now that you have a wallet, head over to the 
-[calibnet faucet](https://faucet.calibration.fildev.network/) 
+[calibnet faucet](https://faucet.calibration.fildev.network/)
 and send yourself some funds. Run `lotus wallet list` to see whether the funds
 arrived.
 
+### IPFS
 
+an ipfs node is started automatically. Its web UI is available at
+```
+http://${TUN0}:${PORT_IPFS_API}/webui
+```
 
 ### Cardano
 

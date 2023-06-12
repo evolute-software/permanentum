@@ -1,0 +1,14 @@
+FROM ipfs/kubo:v0.20.0
+
+COPY permanentum-config.sh /container-init.d/permanentum-config.sh
+
+ARG PORT_IPFS_GW
+ARG PORT_IPFS_WS
+ARG PORT_IPFS_API
+ARG PORT_IPFS_GOSSIP
+
+EXPOSE ${PORT_IPFS_GW}
+EXPOSE ${PORT_IPFS_WS}
+EXPOSE ${PORT_IPFS_API}
+EXPOSE ${PORT_IPFS_GOSSIP}/tcp
+EXPOSE ${PORT_IPFS_GOSSIP}/udp
