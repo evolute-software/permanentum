@@ -19,17 +19,16 @@ ipfs config --json Addresses.Swarm "[
       \"/ip6/::/udp/${PORT_IPFS_GOSSIP}/quic-v1/webtransport\"
     ]"
 
-echo "Increasing Connection resources"
-# https://github.com/ipfs/kubo/issues/9432#issuecomment-1330361712
-# Remove custom params
-#ipfs config --json Swarm.ResourceMgr '{}'
 
-# Set inbound connection limits to a custom value
-
-#ipfs config --json Swarm.ResourceMgr.Limits.System.ConnsInbound 1000
-#ipfs config --json Swarm.ResourceMgr.Limits.System.StreamsInbound 1000
-#ipfs config --json Swarm.ResourceMgr.Limits.Transient.ConnsInbound 1000
-#ipfs config --json Swarm.ResourceMgr.Limits.Transient.StreamsInbound 1000
+echo "Setting public gateway"
+GW_CFG="{
+    \"${WEB_UI_IP}:${PORT_IPFS_GW}\": {
+      \"UseSubdomains\": false,
+      \"Paths\": [\"/ipfs\", \"/ipns\", \"/api\"]
+    }
+  }"
+echo "$GW_CFG"
+ipfs config --json Gateway.PublicGateways "$GW_CFG"
 
 
 # Note: The Web UI seems to have issues with being accessed in a non CORS way
