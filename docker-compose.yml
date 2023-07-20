@@ -30,6 +30,9 @@ services:
       LOTUS_PATH: /lotus
       BOOTSTRAP: "${LOTUS_BOOTSTRAP}"
       LOTUS_API_REMOTELISTENADDRESS: "$PORT_LOTUS"
+      LOTUS_CLIENT_USEIPFS: "true"
+      LOTUS_CLIENT_IPFSMADDR: "/dns4/ipfs/tcp/${PORT_IPFS_API}"
+      LOTUS_CLIENT_IPFSUSEFORRETRIEVAL: "true"
     #restart: on-failure
     ports:
     - "127.0.0.1:17010:1234"
