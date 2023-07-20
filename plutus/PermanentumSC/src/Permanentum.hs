@@ -15,11 +15,11 @@ import           Utilities            (wrapValidator)
 
 type CID = BuiltinByteString -- ToDo: Opaque type with smart construction? 
 
-data BondStatus = Open | SelectingOffers | Funding | Persisting | Live -- | Closed
+data BondStatus = Open | SelectingOffers | Funding | Persisting | Live -- Closed
 unstableMakeIsData ''BondStatus
 
 data Liveness = Premature | Stable | Degraded
-unstableMakeIsData ''Liveness
+
 
 data Bond = Bond 
     { cid :: CID -- the cid containing the bond's cids
@@ -37,8 +37,11 @@ unstableMakeIsData ''Bond -- Use TH to create an instance for IsData.
 mkBondValidator :: Bond -> (Bool, Bool) -> PlutusV2.ScriptContext -> Bool
 mkBondValidator _ (rd1, rd2) _ = rd1 && rd1 == rd2 
 
+
+{-# INLINABLE wrappedVal #-}
 wrappedVal :: BuiltinData -> BuiltinData -> BuiltinData -> ()
 wrappedVal = wrapValidator mkBondValidator
+
 
 validator :: PlutusV2.Validator
 validator = PlutusV2.mkValidatorScript $$(PlutusTx.compile [|| wrappedVal ||])
