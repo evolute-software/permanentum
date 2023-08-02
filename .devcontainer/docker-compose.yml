@@ -1,0 +1,81 @@
+version: "3.5"
+
+volumes:
+  node-ipc:
+  node-db:
+  nix-root:
+
+x-base-logging: &base-logging
+  logging:
+    driver: "json-file"
+    options:
+      max-size: "200k"
+      max-file: "10"
+
+services:
+  cardano-node:
+    <<: *base-logging
+    image: inputoutput/cardano-node:${CARDANO_NODE_VERSION:-1.35.7}
+    environment:
+      NETWORK: ${NETWORK:-preview}
+    volumes:
+      - node-db:/data/db
+      - node-ipc:/ipc
+
+  io-x:
+    <<: *base-logging
+    image: ghcr.io/input-output-hk/devx-devcontainer:ghc8107-iog
+    environment:
+      NETWORK: ${NETWORK:-preview}
+    volumes:
+      - ..:/workspace
+    command: /bin/sh -c "while sleep 1000; do :; done"
+
+  permadev:
+    <<: *base-logging
+    build: .
+    environment:
+      NETWORK: ${NETWORK:-preview}
+      CARDANO_NODE_SOCKET_PATH: /home/gero/.cardano/node.socket
+    volumes:
+      - ..:/workspace
+      - nix-root:/nix
+      - node-ipc:/run/cardano
+    # Run in an infinite loop
+    command: /bin/sh -c "while sleep 1000; do :; done"
+
+
+  plutus-docs:
+    <<: *base-logging
+    build: .
+    environment:
+      NETWORK: ${NETWORK:-preview}
+    volumes:
+      - ..:/workspace
+    working_dir: /workspace
+    command: /usr/bin/python3 -m http.server -d /build/plutus-docs
+    ports:
+      - ${PORT_PREFIX:-188}20:8000
+  plutus-metath:
+    <<: *base-logging
+    build: .
+    environment:
+      NETWORK: ${NETWORK:-preview}
+    volumes:
+      - ..:/workspace
+    working_dir: /workspace
+    command: /usr/bin/python3 -m http.server -d /build/plutus-metatheory
+    ports:
+      - ${PORT_PREFIX:-188}21:8000
+
+  plutus-docs-static:
+    <<: *base-logging
+    build: .
+    environment:
+      NETWORK: ${NETWORK:-preview}
+    volumes:
+      - ..:/workspace
+    working_dir: /workspace
+    command: /usr/bin/python3 -m http.server -d /workspace/docs/plutus-docs/haddock/
+    ports:
+      - ${PORT_PREFIX:-188}29:8000

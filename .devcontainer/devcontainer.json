@@ -1,0 +1,20 @@
+{
+  "name": "Permanentum Devcontainers",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "permadev",
+  "runServices": ["permadev", "cardano-node", "plutus-docs", "plutus-metath", "io-x"],
+  "workspaceFolder": "/workspace",
+  "shutdownAction": "stopCompose",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "haskell.haskell",
+        "vigoo.stylish-haskell"
+      ],
+      "settings": {
+        "haskell.manageHLS":"PATH",
+        "haskell.formattingProvider": "stylish-haskell"
+      }
+    }
+  }
+}
