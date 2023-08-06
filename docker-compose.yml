@@ -17,7 +17,7 @@ services:
     build:
       context: ./lotus
       args:
-        VERSION: "${LOTUS_VERSION}"
+        VERSION: "${LOTUS_VERSION?}"
         NET: $FILECOIN_NETWORK
     volumes:
     - type: bind
@@ -28,10 +28,10 @@ services:
       target: /lotus/keystore
     environment:
       LOTUS_PATH: /lotus
-      BOOTSTRAP: "${LOTUS_BOOTSTRAP}"
-      LOTUS_API_REMOTELISTENADDRESS: "$PORT_LOTUS"
+      BOOTSTRAP: "${LOTUS_BOOTSTRAP?}"
+      LOTUS_API_REMOTELISTENADDRESS: "${PORT_LOTUS?}"
       LOTUS_CLIENT_USEIPFS: "true"
-      LOTUS_CLIENT_IPFSMADDR: "${IPFS_NODE}"
+      LOTUS_CLIENT_IPFSMADDR: "${IPFS_NODE?}"
       LOTUS_CLIENT_IPFSUSEFORRETRIEVAL: "true"
     #restart: on-failure
     ports:
@@ -52,7 +52,7 @@ services:
     environment:
       IPFS_PROFILE: server
       IPFS_PATH: /ipfsdata
-      WEB_UI_IP: ${TUN0}
+      WEB_UI_IP: ${TUN0?}
       IPFS_LOGGING: info
       PORT_IPFS_GW:
       PORT_IPFS_WS:
@@ -61,12 +61,12 @@ services:
     volumes:
       - ${IPFS_STORAGE}:/ipfsdata
     ports:
-      - "${PORT_IPFS_GOSSIP}:${PORT_IPFS_GOSSIP}/tcp"         # ipfs gossip
-      - "${PORT_IPFS_GOSSIP}:${PORT_IPFS_GOSSIP}/udp"         # ipfs gossip
-      - "127.0.0.1:${PORT_IPFS_GW}:${PORT_IPFS_GW}" # gateway local access (nginx)
-      - "${TUN0}:${PORT_IPFS_GW}:${PORT_IPFS_GW}"   # gateway vpn access (dev)
-      - "${TUN0}:${PORT_IPFS_WS}:${PORT_IPFS_WS}" # websocket-listener
-      - "${TUN0}:${PORT_IPFS_API}:${PORT_IPFS_API}" # api server (don't expose externally)
+      - "${PORT_IPFS_GOSSIP?}:${PORT_IPFS_GOSSIP}/tcp"         # ipfs gossip
+      - "${PORT_IPFS_GOSSIP?}:${PORT_IPFS_GOSSIP}/udp"         # ipfs gossip
+      - "127.0.0.1:${PORT_IPFS_GW?}:${PORT_IPFS_GW}" # gateway local access (nginx)
+      - "${TUN0}:${PORT_IPFS_GW?}:${PORT_IPFS_GW}"   # gateway vpn access (dev)
+      - "${TUN0}:${PORT_IPFS_WS?}:${PORT_IPFS_WS}" # websocket-listener
+      - "${TUN0}:${PORT_IPFS_API?}:${PORT_IPFS_API}" # api server (don't expose externally)
 
 volumes:
   nix-storage:
