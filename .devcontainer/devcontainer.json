@@ -2,7 +2,7 @@
   "name": "Permanentum Devcontainers",
   "dockerComposeFile": "docker-compose.yml",
   "service": "permadev",
-  "runServices": ["permadev", "cardano-node", "plutus-docs", "plutus-metath", "io-x"],
+  "runServices": ["permadev", "cardano-node", "plutus-haddock", "plutus-metath", "io-x"],
   "workspaceFolder": "/workspace",
   "shutdownAction": "stopCompose",
   "customizations": {

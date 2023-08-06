@@ -70,9 +70,10 @@ RUN adduser --disabled-password --gecos '' gero \
 RUN cp -rp /root /home/gero/root \
   && chown -R gero /home/gero/root
 RUN apt-get -y update && apt-get -y install  sudo \
-  && echo "gero ALL=(ALL) NOPASSWD: /usr/bin/open-ipc" > /etc/sudoers.d/gero \
-  && echo "gero ALL=(ALL) NOPASSWD: /usr/bin/apt-get" > /etc/sudoers.d/gero \
-  && echo "gero ALL=(ALL) NOPASSWD: /usr/bin/cp" > /etc/sudoers.d/gero \
+  && echo -n "" > /etc/sudoers.d/gero \
+  && echo "gero ALL=(ALL) NOPASSWD: /usr/bin/open-ipc" >> /etc/sudoers.d/gero \
+  && echo "gero ALL=(ALL) NOPASSWD: /usr/bin/apt-get" >> /etc/sudoers.d/gero \
+  && echo "gero ALL=(ALL) NOPASSWD: /usr/bin/cp" >> /etc/sudoers.d/gero \
   && echo "chmod 0777 /run/cardano/node.socket" > /usr/bin/open-ipc \
   && chmod +x /usr/bin/open-ipc
 
@@ -175,7 +176,11 @@ RUN cd /home/gero/ \
   && . /home/gero/.nix-profile/etc/profile.d/nix.sh \
   && nix-channel --update
 
-ARG PLUTUS_VERSION=1.8.0.0
+#ARG PLUTUS_VERSION=1.8.0.0
+# 
+# https://github.com/input-output-hk/cardano-haskell-packages/blob/b3105675c9252d90ba8c7d4fcdceed08a1841e89/_sources/plutus-tx/1.0.0.0/meta.toml
+# PPP v4 and cardano-node 1.35.3 (last supported right now) use:
+ARG PLUTUS_VERSION=a56c96598b4b25c9e28215214d25189331087244
 RUN cd /build \
   && git clone --recurse-submodules -j8 --depth 1 --branch ${PLUTUS_VERSION} \
       https://github.com/input-output-hk/plutus.git plutus \
@@ -184,29 +189,44 @@ RUN cd /build \
   && type nix \
   && ls -la \
   && nix --version \
-  && nix develop --accept-flake-config --command cabal update \
-  && nix develop --accept-flake-config --command cabal build all
+  && nix build -f default.nix \
+
+# 1.8 and later:
+#  && nix develop --accept-flake-config --command cabal update \
+#  && nix develop --accept-flake-config --command cabal build all
 
 RUN cd /build/plutus \
   && . /home/gero/.nix-profile/etc/profile.d/nix.sh \
   && git fetch --tags && git checkout 1.1.0.0 \
-  && nix develop --accept-flake-config --command build-docs \
-  && mv doc/_build /build/plutus-docs
+  && nix build -f default.nix  plutus.plutus-haddock-combined \
+  && mv result/share/doc /build/plutus-haddock
+# 1.8 and later:
+#  && nix develop --accept-flake-config --command build-docs \
+#  && mv doc/_build /build/plutus-docs
 
 RUN cd /build/plutus \
   && . /home/gero/.nix-profile/etc/profile.d/nix.sh \
-  && git fetch --tags && git checkout 1.1.0.0 \
-  && nix develop --accept-flake-config --command cabal haddock all \
-  && mkdir /build/plutus-haddock \
-  && find ./dist-newstyle -type d -name "*/doc/html" -exec 'mv {} /build/plutud-haddock'
+  && nix build -f default.nix docs \
+  && mkdir /build/plutus-docs \
+  && cp -r result/* /build/plutus-docs/
+#  && git fetch --tags && git checkout 1.1.0.0 \
+#  && nix develop --accept-flake-config --command cabal haddock all \
+#  && mkdir /build/plutus-haddock \
+#  && find ./dist-newstyle -type d -name "*/doc/html" -exec 'mv {} /build/plutud-haddock'
 
-RUN cd /build/plutus \
-  && . /home/gero/.nix-profile/etc/profile.d/nix.sh \
-  && git fetch --tags && git checkout 1.1.0.0 \
-  && nix develop --accept-flake-config --command jekyll build \
-  && mv _site /build/plutus-metatheory
+# TODO: find out what that jekyll build actualy does
+#RUN cd /build/plutus \
+#  && . /home/gero/.nix-profile/etc/profile.d/nix.sh \
+#  && git fetch --tags && git checkout 1.1.0.0 \
+#  && nix develop --accept-flake-config --command jekyll build \
+#  && mv _site /build/plutus-metatheory
 
 
+RUN cd /build \
+  && git clone -b v0.7.3.0 https://github.com/hvr/cabal-plan \
+  && cd cabal-plan \
+  && cabal build exe:cabal-plan \
+  && sudo cp `find dist-newstyle/ -type f -name cabal-plan` /usr/bin
 
 RUN echo "source <(cardano-cli --bash-completion-script cardano-cli)" >> ~/.bashrc
 

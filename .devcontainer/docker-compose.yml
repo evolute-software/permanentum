@@ -45,6 +45,18 @@ services:
     command: /bin/sh -c "while sleep 1000; do :; done"
 
 
+  plutus-haddock:
+    <<: *base-logging
+    build: .
+    environment:
+      NETWORK: ${NETWORK:-preview}
+    volumes:
+      - ..:/workspace
+    working_dir: /workspace
+    command: /usr/bin/python3 -m http.server -d /build/plutus-haddock
+    ports:
+      - ${PORT_PREFIX:-188}20:8000
+
   plutus-docs:
     <<: *base-logging
     build: .
@@ -55,27 +67,16 @@ services:
     working_dir: /workspace
     command: /usr/bin/python3 -m http.server -d /build/plutus-docs
     ports:
-      - ${PORT_PREFIX:-188}20:8000
-  plutus-metath:
-    <<: *base-logging
-    build: .
-    environment:
-      NETWORK: ${NETWORK:-preview}
-    volumes:
-      - ..:/workspace
-    working_dir: /workspace
-    command: /usr/bin/python3 -m http.server -d /build/plutus-metatheory
-    ports:
       - ${PORT_PREFIX:-188}21:8000
 
-  plutus-docs-static:
-    <<: *base-logging
-    build: .
-    environment:
-      NETWORK: ${NETWORK:-preview}
-    volumes:
-      - ..:/workspace
-    working_dir: /workspace
-    command: /usr/bin/python3 -m http.server -d /workspace/docs/plutus-docs/haddock/
-    ports:
-      - ${PORT_PREFIX:-188}29:8000
+#  plutus-docs-static:
+#    <<: *base-logging
+#    build: .
+#    environment:
+#      NETWORK: ${NETWORK:-preview}
+#    volumes:
+#      - ..:/workspace
+#    working_dir: /workspace
+#    command: /usr/bin/python3 -m http.server -d /workspace/docs/plutus-docs/haddock/
+#    ports:
+#      - ${PORT_PREFIX:-188}29:8000
