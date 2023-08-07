@@ -64,16 +64,8 @@ then
   lotus daemon --import-snapshot "$SS_PATH"  --halt-after-import
 fi
 
-## Perpare to run
-#trap 'echo "Got SIGUSR1, stopping"; lotus daemon stop' SIGUSR1
-
-#echo "wanna run 'lotus config default'?"
-#touch blk
-#while [ -f blk ]
-#do
-#  echo "waiting for '`pwd`/blk' to dissapear"
-#  sleep 30
-#done
+CFG=/lotus/config.toml
+[ -f "$CFG" ] || echo "Creating default config in $CFG" && { lotus config default > "$CFG"; }
 
 ## Run lotus
 echo "Starting Lotus Daemon"

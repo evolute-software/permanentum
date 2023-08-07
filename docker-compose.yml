@@ -29,13 +29,14 @@ services:
     environment:
       LOTUS_PATH: /lotus
       BOOTSTRAP: "${LOTUS_BOOTSTRAP?}"
+      LOTUS_API_LISTENADDRESS: "/ip4/0.0.0.0/tcp/1234/http"
       LOTUS_API_REMOTELISTENADDRESS: "${PORT_LOTUS?}"
       LOTUS_CLIENT_USEIPFS: "true"
       LOTUS_CLIENT_IPFSMADDR: "${IPFS_NODE?}"
       LOTUS_CLIENT_IPFSUSEFORRETRIEVAL: "true"
     #restart: on-failure
     ports:
-    - "127.0.0.1:17010:1234"
+    - "127.0.0.1:${PORT_LOTUS}:1234"
     profiles: [ "filecoin" ]
 
   ipfs:
