@@ -1,0 +1,32 @@
+cabal-version:      3.0
+
+name:               fil-miners
+version:            0.1.0.0
+
+synopsis:
+    Filecoin Miner Information
+
+description:
+    Scrapes Filrep.io, populates the fil-sp-db and provides a JSON API to query
+    miners
+
+homepage: https://permanentum.io
+
+license:            MIT
+license-file:       LICENSE
+author:             kiriakos
+maintainer:         kiriakos@evolute.software
+
+copyright:          Evolute Software
+category:           Web
+
+executable fil-miners
+    main-is:          Main.hs
+    build-depends:
+        , base      ^>= 4.14.3.0
+        , text      ^>= 2.0.2
+        , timers    ^>= 0.2.0.4
+        , suspend   ^>= 0.2.0.0
+        , unix      ^>= 2.7.2.2
+    hs-source-dirs:   app
+    default-language: Haskell2010
