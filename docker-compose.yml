@@ -69,7 +69,50 @@ services:
       - "${TUN0}:${PORT_IPFS_WS?}:${PORT_IPFS_WS}" # websocket-listener
       - "${TUN0}:${PORT_IPFS_API?}:${PORT_IPFS_API}" # api server (don't expose externally)
 
+  fil-miners:
+    build: fil-miners
+    environment:
+        NET: $FILECOIN_NETWORK
+    secrets:
+      - fil-sp-db
+
+  fil-sp-db: &db
+    image: postgres:14-alpine
+    restart: always
+    ports:
+      - "${PORT_FIL_SP_DB?}:5432"
+    environment:
+      POSTGRES_USER: fil-sp-db
+      POSTGRES_DB: fil-sp-db
+      POSTGRES_PASSWORD_FILE: /run/secrets/fil-sp-db
+    volumes:
+      - fil-sp-db:/var/lib/postgresql/data
+    secrets:
+      - fil-sp-db
+    profiles: [ "filecoin", "backend"]
+
+  indexer:
+    build: indexer
+    # TODO: clean this up
+    command: daemon --config /etc/oura/daemon.toml
+    environment:
+      NODE_HOST: cntr-1.devices.kindstudios.gr
+      NODE_PORT: 25437
+      CARDANO_NETWORK:
+      SC_ADDRESS:
+      TUN0:
+      PORT_INDEXER_METRICS:
+    ports:
+      - "${TUN0}:${PORT_INDEXER_METRICS}:9186"
+    volumes:
+      - indexer-cursor:/run/oura/cursor
+
 volumes:
   nix-storage:
   cardano-socket:
+  fil-sp-db:
+  indexer-cursor:
 
+secrets:
+  fil-sp-db:
+     file: ops/secrets/fil-sp-db

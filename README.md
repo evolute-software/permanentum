@@ -17,6 +17,7 @@ homepage: [permanentum.io](https://permanentum.io)
 To run a local instance just clone this repo and run:
 ```
 cp example.env .env
+ops/scripts/mksecrets.sh
 # OPT: edit .env to your liking
 docker compose up
 ```

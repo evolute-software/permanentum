@@ -1,19 +1,22 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE NumericUnderscores #-}
 
-module Main where
+module Main(main) where
 
 import           Data.Text                  (Text, intercalate, pack, unpack)
 import           System.Environment         (getEnv)
 import           Control.Monad              (forever, unless, void)
 import           Control.Concurrent         (forkIO, newMVar, newEmptyMVar
                                             , takeMVar , putMVar, isEmptyMVar
-                                            , threadDelay, MVar, ThreadId)
-import           Control.Concurrent.Timer   (repeatedTimer, repeatedRestart)
+                                            , threadDelay, MVar, ThreadId, readMVar)
+import           Control.Concurrent.Timer   (repeatedTimer, repeatedRestart, repeatedStart)
 import           Control.Concurrent.Suspend (sDelay, mDelay)
 import qualified System.Posix.Signals       as Signals
 import qualified System.IO                  as SysIO
+import           System.Exit                (die)
 
+import qualified Filrep
+import FilrepApi (Config (network), config, getMiners)
 
 spDbSecretPath :: FilePath
 spDbSecretPath = "/run/secrets/fil-sp-db"
@@ -29,39 +32,44 @@ main = do
   -- Enforce LineBuffering even in daemon mode
   SysIO.hSetBuffering SysIO.stdout SysIO.LineBuffering
 
+  (cfg, dbPw) <- getRuntime
+  putStrLn $ makeStartupMsg dbPw cfg
+
+  putStr "Trying to start fetch timer in a separate thread... "
+  minersFetched <- newEmptyMVar :: IO (MVar [Filrep.Miner])
+  timer <- repeatedTimer (fetchMiners cfg minersFetched) $ sDelay 30
+  (status, thread) <- forkTimer $ repeatedRestart timer
+  if status then do
+    putStrLn "Success"
+  else do
+    die "Fail"
+  putStrLn "Initialized. Entering Wait loop"
+
+  putStr "Trying to start persistence... "
+  timer2 <- repeatedTimer (persistMiners cfg minersFetched) $ sDelay 1
+  void $ repeatedRestart timer2
+  putStrLn "Initialized. Entering Wait loop"
+
   -- Exit on interupts
   exitMVar <-  newMVar ()
   Signals.installHandler Signals.sigINT (Signals.Catch (exit exitMVar))  Nothing
-
-  putStrLn "Reading secrets"
-  dbPw <- readFile spDbSecretPath
-
-  putStrLn "Configuring from Environment"
-  net <- getEnv "NET"
-
-  let cfg = config net
-  putStrLn $ makeGreeting dbPw net cfg
-
-  putStr "Trying to start fetch timer... "
-  timer <- repeatedTimer (putStrLn "Tick!") $ sDelay 1
-  (status, thread) <- forkTimer $ repeatedRestart timer
-
-  --statusMVar <- newEmptyMVar
-  --thread <- forkIO $ void $ do
-  --                          started <- repeatedRestart timer
-  --                          putMVar statusMVar started
-
-  --status <- takeMVar statusMVar
-  putStrLn $ if status then "Success" else "Fail"
-
-  timer2 <- repeatedTimer (putStrLn "Tick2!") $ sDelay 1
-  void $ repeatedRestart timer2
-
-  putStrLn "Initialized. Entering Wait loop"
   let loop = do threadDelay 1_000_000
                 exit <- isEmptyMVar exitMVar
                 unless exit loop
+
+  --getMiners cfg >>= print
   loop
+
+fetchMiners :: Config -> MVar [Filrep.Miner] -> IO ()
+fetchMiners cfg mv= do
+  putStrLn "Fetching miners"
+  getMiners cfg >>= putMVar mv
+
+persistMiners :: Config -> MVar [Filrep.Miner] -> IO ()
+persistMiners cfg mv = do
+  putStrLn "Waiting for miners to be fetched"
+  miners <- takeMVar mv
+  putStrLn $ "Got " ++  show (length miners) ++ " miners"
 
 forkTimer :: IO Bool -> IO (Bool, ThreadId)
 forkTimer action = do
@@ -72,12 +80,13 @@ forkTimer action = do
   status <- takeMVar statusMVar
   pure (status, thread)
 
-makeGreeting :: String -> String -> Config -> String
-makeGreeting dbPw net cfg =
+makeStartupMsg :: String -> Config -> String
+makeStartupMsg dbPw cfg =
   let
     msgs = [ "'fil-miners' starting with: "
            , pack dbPw
-           , pack net
+           , (pack . show . network) cfg
+           , pack $ show $ network cfg
            , pack $ show cfg
            ]
 
@@ -85,16 +94,16 @@ makeGreeting dbPw net cfg =
   in
     unpack msg
 
+getRuntime :: IO (Config, DbPassword)
+getRuntime = do
+  putStrLn "Reading secrets"
+  dbpw <- readFile spDbSecretPath
 
--- TODO: Code Gen ADTs https://stackoverflow.com/a/44144476/2684881
-config :: String -> Config
-config "mainnet"  = Config "https://api.filrep.io/api" 15
-config "calibnet" = Config "https://api.calibration.filrep.io/api" 30
-config n          =
-  error $ "fil-miners has no configuration for network: '" ++ n ++ "'"
+  putStrLn "Configuring from Environment"
+  net <- getEnv "NET"
+  let cfg = config net
 
-data Config = Config
-  { baseUrl :: Text
-  , pageSize :: Int
-  } deriving (Show)
+  pure (cfg, dbpw)
 
+-- ToDo: generic opaque types?
+type DbPassword = String

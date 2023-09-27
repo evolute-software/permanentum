@@ -1,4 +1,4 @@
-FROM haskell:8.10-buster
+FROM haskell:9.2.8-buster
 
 RUN cabal update
 
@@ -12,7 +12,7 @@ COPY . .
 
 RUN cabal build
 
-RUN cp -v `cabal list-bin fil-miners:exes` /usr/bin
+RUN cp -v `cabal list-bin fil-miners-exe` /usr/bin/fil-miners
 
 RUN type fil-miners
 
