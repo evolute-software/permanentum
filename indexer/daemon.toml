@@ -1,0 +1,42 @@
+[source]
+type = "N2N"
+address = ["Tcp", "${NODE_HOST}:${NODE_PORT}"]
+magic = ${NET_MAGIC}
+
+[source.intersect]
+type = "Point"
+value = [ 20597229, "a5ce1e98a293c5f0a226aaf543c056ffd42979553af7455ce4008b4d07c624be" ]
+
+#[sink]
+#type = "Terminal"
+#throttle_min_span_millis = 500
+#wrap = true
+
+[sink]
+type = "Webhook"
+url = "https://requestinspector.com/inspect/01h8gdanvcb4bpd8csv7w5thmm"
+timeout = 30000
+error_policy = "Exit"
+[sink.retry_policy]
+max_retries = 30
+backoff_unit =  4000
+backoff_factor = 2
+max_backoff = 110000
+[sink.headers]
+Producer = "SC Sink"
+Filter = "SC tx"
+
+[[filters]]
+type = "Selection"
+
+[filters.check]
+predicate = "address_equals"
+argument = "${SC_ADDRESS}"
+
+[cursor]
+type = "File"
+path = "/run/oura/cursor/daemon.cursor"
+
+[metrics]
+address = "0.0.0.0:9186"
+endpoint = "/metrics"
