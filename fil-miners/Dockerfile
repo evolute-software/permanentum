@@ -6,7 +6,7 @@ WORKDIR /app
 
 COPY *.cabal .
 
-RUN cabal build --only-dependencies -j4
+RUN cabal update && cabal build --only-dependencies -j4
 
 COPY . .
 

@@ -17,6 +17,7 @@ import           System.Exit                (die)
 
 import qualified Filrep
 import FilrepApi (Config (network), config, getMiners)
+import qualified SpDb
 
 spDbSecretPath :: FilePath
 spDbSecretPath = "/run/secrets/fil-sp-db"
@@ -35,6 +36,17 @@ main = do
   (cfg, dbPw) <- getRuntime
   putStrLn $ makeStartupMsg dbPw cfg
 
+  putStr "Trying to set up DB... "
+  conn <- SpDb.connect dbPw
+  putStrLn "Success!"
+
+  putStrLn "Running migrations... "
+  migrations <- SpDb.runMigrations conn
+  if migrations then do
+    putStrLn "Success"
+  else do
+    die "Fail"
+
   putStr "Trying to start fetch timer in a separate thread... "
   minersFetched <- newEmptyMVar :: IO (MVar [Filrep.Miner])
   timer <- repeatedTimer (fetchMiners cfg minersFetched) $ sDelay 30
@@ -46,7 +58,7 @@ main = do
   putStrLn "Initialized. Entering Wait loop"
 
   putStr "Trying to start persistence... "
-  timer2 <- repeatedTimer (persistMiners cfg minersFetched) $ sDelay 1
+  timer2 <- repeatedTimer (SpDb.persistMiners conn minersFetched) $ sDelay 1
   void $ repeatedRestart timer2
   putStrLn "Initialized. Entering Wait loop"
 
@@ -59,17 +71,13 @@ main = do
 
   --getMiners cfg >>= print
   loop
+  SpDb.disconnect conn
 
 fetchMiners :: Config -> MVar [Filrep.Miner] -> IO ()
 fetchMiners cfg mv= do
   putStrLn "Fetching miners"
   getMiners cfg >>= putMVar mv
 
-persistMiners :: Config -> MVar [Filrep.Miner] -> IO ()
-persistMiners cfg mv = do
-  putStrLn "Waiting for miners to be fetched"
-  miners <- takeMVar mv
-  putStrLn $ "Got " ++  show (length miners) ++ " miners"
 
 forkTimer :: IO Bool -> IO (Bool, ThreadId)
 forkTimer action = do
@@ -85,7 +93,6 @@ makeStartupMsg dbPw cfg =
   let
     msgs = [ "'fil-miners' starting with: "
            , pack dbPw
-           , (pack . show . network) cfg
            , pack $ show $ network cfg
            , pack $ show cfg
            ]
