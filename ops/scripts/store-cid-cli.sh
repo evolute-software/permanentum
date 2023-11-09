@@ -10,42 +10,34 @@
 # docker-compose exec ipfs ipfs add --cid-version 0 --quieter /1g-sample.b64
 # ```
 
+set -e
+set -u
 
 SYN="$0 CID BYTES [WALLET]"
 
 [ $# -lt 2 ] && echo $SYN && exit 3
 
 CID=$1
-BYTES=$2
+# TODO: Download CID from SPs IPFS gateway, not permanentum's
+CAR_URL=http://permanentum-testnet.devices.kindstudios.gr:34021/ipfs/${CID}?format=car
+docker compose exec boost-client bash -c "curl -X GET --fail '$CAR_URL' > /tmp/${CID}.car"
+COMM=`docker compose exec boost-client boostx | cut -d: -f2- | tr -d " "`
+COMMP_CID=`echo "$COMM" | head -n1`
+PIECE_SIZE=`echo "$COMM" | head -n-1 | tail -n-1`
+CAR_SIZE=`echo "$COMM" | tail -n1`
 
-WALLETS=`docker compose exec lotus lotus wallet list --addr-only`
-if [ $# -eq 3 ]
-then
-  # Try to use the passed wallet ot fail
-  WALLET=`echo "$WALLETS" | grep $3`
-  #echo "$WALLET"
-  #echo "$WALLET" | wc -l
-  WALLET_NO=`echo "$WALLET" | wc -l`
-  [ $WALLET_NO -ne 1 ] && echo "Error, got $WALLET_NO wallets for '$3'" && exit 1
 
-  echo "Using Wallet: $WALLET"
-else
-  # Select a wallet
-  select WALLET in $WALLETS
-  do
-    [ -z $WALLET ] \
-      && echo "You must select one of the above options" \
-      && continue
-    break
-  done
-fi
-
-echo "Selected: $WALLET"
+# TODO: find local option
+PUB_CAR=https://ipfs.io/ipfs/$CID?format=car
 
 # See: https://calibration.filrep.io/
 MINERS=(
   t017840 # Europe
-  t01024  # t017819 0Fil # Asia
+  t01013
+  t03751 # smth smth
+  t018199
+  t017387
+  t016755 # t017819 0Fil # Asia
   t01491  # North America
 )
 
@@ -53,13 +45,24 @@ DAYS=372 # How long it is intended to store the data
 DURATION=$(( $DAYS * 24 * 60 * 60  / 30 ))
 # Blocktime 30s https://docs.filecoin.io/basics/the-blockchain/blocks-and-tipsets/#blocktime
 # 518400  is 6 months https://lotus.filecoin.io/lotus/manage/lotus-cli/#lotus-client-deal
-
+TIP="0.0000000000002"
 FEES=()
+echo "Trying to find deals for $CID ($CAR_SIZE car bytes) for $DURATION epochs"
 for i in "${MINERS[@]}"
 do
-  FEE=`docker compose exec lotus lotus client query-ask --duration $DURATION --size $BYTES $i | grep "Total Price" | cut -d: -f 2 | cut -d" " -f2`
-  FEES+=( "$FEE" )
-  echo "Miner $i '$FEE'"
+  ASK=`docker compose exec boost-client boost provider storage-ask --size $CAR_SIZE --duration $DURATION`
+  if [ ! -z "$FOO" ] then
+    FEE=`echo "$ASK" | grep "Price per Block" | cut -d: -f 2 | cut -d" " -f2`
+    OFFER=`echo -e "$FEE + $TIP" | bc | sed 's/^\./0./'`
+  else
+    OFFER="Failure"
+  fi
+
+  FEES+=( "$OFFER" )
+  echo "Miner $i '$OFFER'"
+  echo "$ASK"
+  echo
+
 done
 
 select M_IDX in "${!MINERS[@]}"
@@ -77,7 +80,7 @@ echo Miner selected: $MINER
 echo Fee: $FEE
 
 # Make the deal
-CMD="docker compose exec lotus lotus client deal --from $WALLET $CID $MINER $FEE $DURATION"
+CMD="docker compose exec boost-client"
 echo "$CMD"
 $CMD
 

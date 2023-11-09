@@ -1,4 +1,4 @@
-FROM golang:1.19.7-bullseye
+FROM golang:1.21.3-bookworm
 
 # Based on:
 # https://lotus.filecoin.io/lotus/install/linux/

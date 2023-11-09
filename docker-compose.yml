@@ -40,6 +40,7 @@ services:
     profiles: [ "filecoin" ]
 
   ipfs:
+  # Maybe add https://github.com/filecoin-project/lassie for retrieval?
     <<: *base-logging
     restart: on-failure
     build:
@@ -68,6 +69,54 @@ services:
       - "${TUN0}:${PORT_IPFS_GW?}:${PORT_IPFS_GW}"   # gateway vpn access (dev)
       - "${TUN0}:${PORT_IPFS_WS?}:${PORT_IPFS_WS}" # websocket-listener
       - "${TUN0}:${PORT_IPFS_API?}:${PORT_IPFS_API}" # api server (don't expose externally)
+
+  boost-client:
+    <<: *base-logging
+    restart: on-failure
+    build:
+      context: ./boost
+      args:
+        BOOST_VERSION:
+        BOOST_BUILD_TARGET:
+        FILECOIN_NETWORK:
+    command: bash -c "boost wallet import --format=hex-lotus --as-default /run/secrets/storage-wallet; echo waiting; while true; do sleep 1; done"
+    environment:
+      BOOST_CLIENT_REPO: /boost-client
+      FULLNODE_API_INFO: ${BOOST_FULLNODE_API_INFO?}
+
+    volumes:
+      - boost-client:/boost-client
+    secrets:
+      - storage-wallet
+    depends_on:
+      - boost-data
+      - lotus
+
+  boost-data:
+    <<: *base-logging
+    restart: on-failure
+    build:
+      context: ./boost
+      args:
+        BOOST_VERSION:
+        BOOST_BUILD_TARGET:
+    command: boostd-data run yugabyte --hosts yugabyte --connect-string="postgresql://yugabyte:yugabyte@yugabyte:5433/yugabyte?sslmode=disable" --addr=0.0.0.0:8044
+    environment:
+      PUBLISH_STORAGE_DEALS_WALLET: ${BOOST_STORAGE_WALLET?}
+      COLLAT_WALLET: ${BOOST_COLLAT_WALLET?}
+    depends_on:
+      - yugabyte
+
+  yugabyte:
+    <<: *base-logging
+    ports: [] # TODO: do we need ports?
+      # -7000:7000
+      # -9000:9000
+      # -15433:15433
+      # -5433:5433
+      # -9042:9042
+    image:  yugabytedb/yugabyte:2.19.3.0-b140
+    command: bin/yugabyted start  --daemon=false
 
   fil-miners:
     build: fil-miners
@@ -112,7 +161,10 @@ volumes:
   cardano-socket:
   fil-sp-db:
   indexer-cursor:
+  boost-client:
 
 secrets:
   fil-sp-db:
-     file: ops/secrets/fil-sp-db
+    file: ops/secrets/fil-sp-db
+  storage-wallet:
+    file: ops/secrets/filecoin/storage.wallet
