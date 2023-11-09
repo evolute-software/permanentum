@@ -8,18 +8,23 @@ module SpDb( connect
            ) where
 
 import           Control.Concurrent         (MVar, takeMVar)
-import           Control.Monad              (void)
-import qualified Database.PostgreSQL.Simple as P
-import qualified Database.PostgreSQL.Simple.Migration as PSM
-import           Data.FileEmbed             (embedDir, embedFile)
-import           Data.ByteString            (ByteString)
+import           Control.Monad              (void, when)
+import           Data.Bifunctor             (bimap)
+import           Data.ByteString            (ByteString, intercalate)
 import           Data.ByteString.Char8      (pack)
 import           Data.ByteString.UTF8       (toString)
+import           Data.Either                (isLeft, fromLeft, rights)
+import           Data.FileEmbed             (embedDir, embedFile)
+import           Data.Function              ((&))
+import           Data.String                (fromString)
 import           System.FilePath            (takeFileName)
 import           Text.Regex.TDFA            ((=~), Regex)
-import           Data.String (fromString)
+import qualified Database.PostgreSQL.Simple as P
+import qualified Database.PostgreSQL.Simple.Migration as PSM
+import qualified Database.PostgreSQL.Simple.Types as PT
 
 import qualified Filrep
+import qualified CoreTypes
 
 
 type DbPassword = String
@@ -73,14 +78,33 @@ persistMiners :: P.Connection -> MVar [Filrep.Miner] -> IO ()
 persistMiners conn mv = do
   putStrLn "Waiting for miners to be fetched"
   miners <- takeMVar mv
-  putStr $ "Got " ++  show (length miners) ++ " miners "
-  (new, vanished) <- persistMiners' conn miners
-  putStrLn $ "(" ++ show new ++ " new, " ++ show vanished ++ " vanished)"
+  putStr $ "Got " ++  show (length miners) ++ " miners"
+  (valid, persisted) <- persistMiners' conn miners
+  putStrLn $ "(" ++ show valid ++ " valid, " ++ show persisted ++ " persisted)"
 
 persistMiners' :: P.Connection -> [Filrep.Miner] -> IO (Int, Int)
-persistMiners' conn miners = do
-  error "Implement this"
+persistMiners' conn ms =
+  let
+    miners :: [Either [String] CoreTypes.Miner]
+    miners = map CoreTypes.toMiner ms
 
+    ezip :: [ (Filrep.Miner, Either [String] CoreTypes.Miner) ]
+    ezip = zip ms miners
+
+    errors :: [(String, [String])]
+    errors = ezip & filter (\(m,e) -> isLeft e)
+                  & map (bimap Filrep.address (fromLeft undefined))
+
+    messages :: [String]
+    messages = map (\es -> fst es ++ ": " ++ unwords (snd es)) errors
+
+    errorCount = length messages
+  in
+  do
+    when (errorCount > 0) $ putStrLn $  show errorCount ++ " errors happened:"
+    mapM_ putStrLn messages
+    changes <- P.executeMany conn qPersistMiners $ rights miners
+    return (fromIntegral $ length $ rights miners, fromIntegral changes)
 
 -- Here be Queries ------------------------------------------------------------
 

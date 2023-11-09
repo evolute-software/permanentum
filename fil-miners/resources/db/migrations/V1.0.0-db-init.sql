@@ -8,7 +8,7 @@ CREATE TYPE filrep_region AS ENUM ('Asia', 'Europe', 'Africa', 'Oceania', 'North
 
 -- filrep_miners table
 CREATE TABLE filrep_miners (
-   id integer NOT NULL,
+   address char(12) NOT NULL,
 
    price numeric(27),
    region filrep_region NOT NULL,
@@ -32,7 +32,7 @@ CREATE TABLE filrep_miners (
    created_at numeric(18) NOT NULL,
    updated_at numeric(18) NOT NULL,
 
-   CONSTRAINT filrep_miner_pkey PRIMARY KEY (id)
+   CONSTRAINT filrep_miner_pkey PRIMARY KEY (address)
 );
 
 CREATE FUNCTION micro_unix_ts()

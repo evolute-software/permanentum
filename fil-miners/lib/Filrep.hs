@@ -1,16 +1,31 @@
+{-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE InstanceSigs #-}
 
-module Filrep(Page(..), Miner(..), Pagination(..), Region, DataBytes, emptyPage) where
+module Filrep
+  ( Page(..)
+  , Miner(..)
+  , Pagination(..)
+  , StorageDeals(..)
+  , Region
+  , DataBytes
+  , emptyPage
+  , toInteger
+  ) where
 
+import           Prelude                 hiding (toInteger)
 import qualified Data.Map.Strict as Map
-import Data.Text (pack, unpack)
-import Data.Aeson (ToJSON(..), FromJSON(..), Value(..), (.:), (.=), object, (.:?), (.:!))
-import Data.Aeson.Types (prependFailure, typeMismatch, Parser)
-import Data.Maybe (fromMaybe)
-import Data.Scientific (Scientific, toBoundedInteger, scientific)
+import           Data.Text               (pack, unpack)
+import           Data.Aeson              ( ToJSON(..), FromJSON(..), Value(..)
+                                         , (.:), (.=), object, (.:?), (.:!)
+                                         )
+import           Data.Aeson.Types        (prependFailure, typeMismatch, Parser)
+import           Data.Function           ((&))
+import           Data.Maybe              (fromMaybe)
+import           Data.Scientific         (Scientific, toBoundedInteger, scientific, toRealFloat)
+import           Text.Read               (readMaybe)
 
 data Page = Page
   { miners :: [Miner]
@@ -62,6 +77,11 @@ data Scores = Scores
 
 data MaybeScalar = JustStr String | JustNum Scientific | Null
   deriving (Show, Eq, Ord)
+
+toInteger :: MaybeScalar -> Maybe Integer
+toInteger (JustStr s) = readMaybe s
+toInteger (JustNum n) = toRealFloat n & round & Just
+toInteger Filrep.Null = Nothing
 
 instance ToJSON MaybeScalar where
   toJSON (JustStr u) = String (pack u)

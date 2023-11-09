@@ -13,7 +13,7 @@ import Servant.Client           (BaseUrl(..), ClientEnv, mkClientEnv,
 
 -- Local
 import Filrep                   (Page, Miner, Pagination, DataBytes, miners,
-                                 emptyPage, total, offset, limit, pagination)
+                                 emptyPage, Pagination(total), offset, limit, pagination)
 
 
 getMiners :: Config -> IO [ Miner ]

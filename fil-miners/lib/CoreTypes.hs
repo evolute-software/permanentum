@@ -1,75 +1,141 @@
+--{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveGeneric  #-}
+{-# LANGUAGE GeneralisedNewtypeDeriving #-}
+{-# LANGUAGE PartialTypeSignatures #-}
+
 module CoreTypes
-  ( Miner(..)
+  ( Miner(..), toMiner
   , AttoFil, mkAttoFil
   , Bytes, mkBytes
   , UnixMs, mkUnixMs
   ) where
 
+
+import           GHC.Generics                       (Generic)
+import           Database.PostgreSQL.Simple         (ToRow(..))
+import           Database.PostgreSQL.Simple.ToField (ToField(..), Action (Plain, Escape))
+import           Data.ByteString.Builder            (intDec, integerDec)
+import qualified Data.ByteString.Char8             as BS8
+import qualified Data.Either                        as E
+import           Data.Either.Extra                  (maybeToEither, fromEither)
+import qualified Data.Maybe                         as M
+import           Data.Text                          (toLower, pack, unpack)
+import           Data.Function                      ((&))
+import           Text.Read                          (readMaybe, readEither)
+
+import qualified Filrep                             (Miner(..), StorageDeals(..), toInteger)
+import qualified Constraints
+import           LangUtil                           (maybeL, maybeR)
+
+--
+-- A Record constructed of DB rows. Typically records have one primary row in
+-- the db, that is the one feeding the created_at and updated_at fields.
+
+data Record r = Record
+  { record :: r
+  , created_at :: UnixMs
+  , updated_at :: UnixMs
+  }
+
 --
 -- Canonical Miner Representation returned by the API and used by the DB
 
 data Miner = Miner
-  { filrep_id :: Integer
+  { address :: String
   , price :: Maybe AttoFil
-  , region :: Maybe Region
+  , region :: Region
   , iso2_code :: Maybe Iso2Code
   , rank :: Integer
   , status :: Bool
   , reachable :: Bool
+  , score :: Integer
   , free_space :: Maybe Bytes
-  , minPieceSize :: Maybe Bytes
-  , maxPieceSize :: Maybe Bytes
-  , dealsTotal :: Integer -- Deals not important enough for smart construction
-  , deals_pristine :: Integer
+  , min_piece_size :: Maybe Bytes
+  , max_piece_size :: Maybe Bytes
+  , deals_total :: Integer -- Deals not important enough for smart construction
+  , deals_pristine :: Integer -- noPenalties
   , deals_slashed :: Integer
   , deals_terminated :: Integer
   , deals_fault_terminated :: Integer
-  , created_at :: UnixMs
-  , updated_at :: UnixMs
-  } deriving (Show, Eq, Ord)
+  } deriving (Show, Eq, Ord, Generic)
 
-newtype AttoFil = AttoFil Integer deriving (Show, Eq, Ord)
+instance ToRow Miner where
 
-mkAttoFil :: Integer -> AttoFil
+
+toMiner :: Filrep.Miner -> Either [String] Miner
+toMiner fm =
+  let
+    deals = Filrep.storageDeals fm
+
+    fs = mapBytes "freeSpace" $ Filrep.freeSpace fm
+    mips = mapBytes "minPieceSize" $ Filrep.minPieceSize fm
+    maps = mapBytes "maxPieceSize" $ Filrep.maxPieceSize fm
+
+    errors :: [String]
+    errors = M.catMaybes [maybeL fs, maybeL mips, maybeL maps]
+
+  in
+  if null errors then
+    Right  Miner
+      { address = Filrep.address fm
+      , price = Filrep.price fm >>= readMaybe
+      , region = Filrep.region fm >>= readMaybe & M.fromMaybe Unknown
+      , iso2_code = Filrep.isoCode fm >>= readMaybe
+      , rank = M.fromMaybe (-1) $ readMaybe $ Filrep.rank fm
+      , status = Filrep.status fm
+      , reachable = Filrep.reachability fm == "reachable"
+      , score = Filrep.score fm & Filrep.toInteger & M.fromMaybe 0
+      , free_space = maybeR fs
+      , min_piece_size = maybeR mips
+      , max_piece_size = maybeR maps
+      , deals_total = M.fromMaybe 0 $ Filrep.total deals
+      , deals_pristine = M.fromMaybe 0 $ Filrep.noPenalties deals
+      , deals_slashed = M.fromMaybe 0 $ Filrep.slashed deals
+      , deals_terminated = M.fromMaybe 0 $ Filrep.terminated deals
+      , deals_fault_terminated = M.fromMaybe 0 $ Filrep.faultTerminated deals
+      }
+  else
+    Left errors
+
+newtype AttoFil = AttoFil Integer deriving (Show, Eq, Ord, Generic, Read, ToField)
+
+mapAttoFil :: Maybe String -> Either String AttoFil
+mapAttoFil ms =
+  maybe (Left "No attofil string") Right ms >>= readEither >>= mkAttoFil
+
+mkAttoFil :: Integer -> Either String AttoFil
 mkAttoFil =
-  constrainPositiveInt AttoFil
+  Constraints.positive AttoFil
 
-newtype Bytes = Bytes Integer deriving (Show, Eq, Ord)
+newtype Bytes = Bytes Integer deriving (Show, Eq, Ord, Generic, ToField)
 
-mkBytes :: Integer -> Bytes
+mapBytes :: String -> Maybe String -> Either String Bytes
+mapBytes field bs =
+  maybe (Left $ field ++ ": No byte string") Right bs >>= readEither >>= mkBytes
+
+mkBytes :: Integer -> Either String Bytes
 mkBytes =
-  constrainPositiveInt Bytes
+  Constraints.positive Bytes
 
 -- ISO2 country code based on the  ISO CC spec
-newtype Iso2Code = Iso2Code String deriving (Show, Eq, Ord)
+newtype Iso2Code = Iso2Code String deriving (Show, Eq, Ord, Read, Generic, ToField)
 
-mkIso2Code :: String -> Iso2Code
+mkIso2Code :: String -> Either String Iso2Code
 mkIso2Code =
-  constrainLength 2 2 Iso2Code
+  Constraints.length 2 2 Iso2Code
 
 -- Timestamp resembling the microseconds passed since 1970-01-01 00:00:00+00
-newtype UnixMs = UnixMs String deriving (Show, Eq, Ord)
+-- These typically are timestamps generated by the Postgres DB during INSERT/UPDATE operations.
+newtype UnixMs = UnixMs Integer deriving (Show, Eq, Ord, Generic)
+instance ToField UnixMs where
+  toField (UnixMs i) = Plain (integerDec i)
 
-mkUnixMs :: String -> UnixMs
+
+mkUnixMs :: Integer -> Either String UnixMs
 mkUnixMs =
-  constrainLength 2 2 UnixMs
-
-constrainLength :: Int -> Int -> (String -> a) -> String -> a
-constrainLength min max constructor s =
-  if length s >= min && length s <= max then
-    constructor s
-  else
-    error $
-      "The passed string must be between " ++ show min ++ " and "
-      ++ show max ++ " (both inclusive). Passed length: " ++ show (length s)
+  Constraints.positive UnixMs
 
 
-constrainPositiveInt :: (Integer -> a)-> Integer -> a
-constrainPositiveInt constructor i =
-  if i >= 0 then
-    constructor i
-  else
-    error "No Negative integers allowed"
 
 data Region = Asia
             | Europe
@@ -79,6 +145,24 @@ data Region = Asia
             | CentralAmerica
             | SouthAmerica
             | Unknown
-            deriving (Show, Eq, Ord)
+            deriving (Show, Eq, Ord, Generic)
 
+instance ToField Region where
+  toField r = Escape $ BS8.pack $ show r
+
+instance Read Region where
+  readsPrec i s = [ (v, s) ]
+    where
+
+      lower = unpack . toLower . pack
+
+      v :: Region
+      v = case lower s of
+            "asia" -> Asia
+            "europe" -> Europe
+            "africa" -> Africa
+            "oceania" -> Oceania
+            "nortamerica" -> NorthAmerica
+            "centralamerica" -> CentralAmerica
+            _ -> Unknown
 
